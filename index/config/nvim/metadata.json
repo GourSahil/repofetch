@@ -1,6 +1,6 @@
 {
     "ide": {
-        "install_dir": ".config",
+        "install_dir": ".config/nvim",
         "description": "An IDE like feel in neovim",
         "files": [
             "init.lua",
