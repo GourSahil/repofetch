@@ -1,0 +1,10 @@
+{
+    "default": {
+        "install_dir": ".config/hypr",
+        "description": "My Hyprland's config",
+        "files": [
+            "hyprland.conf",
+            "scripts/wallpaper.sh"
+        ]
+    }
+}

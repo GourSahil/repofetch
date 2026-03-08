@@ -3,6 +3,8 @@ import argparse
 import requests
 import shutil
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import tqdm
 
 OWNER = "GourSahil"
 REPO = "repofetch"
@@ -39,17 +41,16 @@ def download(url, target):
             f.write(r.content)
 
     except Exception as e:
-        print(f"[ERROR] Failed downloading {url}")
-        print(e)
-        sys.exit(1)
+        raise RuntimeError(f"Download failed: {url}") from e
 
 
 # ----------------------------
-# Recursive downloader
+# Gather all files recursively
 # ----------------------------
-def download_tree(repo_path, install_root, base_path):
+def gather_files(repo_path):
 
     items = gh_list(repo_path)
+    files = []
 
     for item in items:
 
@@ -61,18 +62,23 @@ def download_tree(repo_path, install_root, base_path):
                 print(f"[ERROR] No download URL for {item['path']}")
                 sys.exit(1)
 
-            rel_path = Path(item["path"]).relative_to(base_path)
-            target = install_root / rel_path
-
-            print(f"Downloading {rel_path}")
-
-            download(raw_url, target)
+            files.append({
+                "path": item["path"],
+                "url": raw_url
+            })
 
         elif item["type"] == "dir":
 
-            download_tree(item["path"], install_root, base_path)
+            files.extend(gather_files(item["path"]))
 
+    return files
+
+
+# ----------------------------
+# Reset Neovim runtime
+# ----------------------------
 def reset_nvim_runtime():
+
     paths = [
         Path.home() / ".local/share/nvim",
         Path.home() / ".cache/nvim",
@@ -82,6 +88,7 @@ def reset_nvim_runtime():
     for p in paths:
         if p.exists():
             shutil.rmtree(p)
+
 
 # ----------------------------
 # Discover apps
@@ -98,7 +105,6 @@ def discover_apps():
             continue
 
         category = cat["name"]
-
         apps_dir = gh_list(f"index/{category}")
 
         for app in apps_dir:
@@ -157,12 +163,11 @@ def search_apps(query):
             desc = info.get("description", "")
 
             if query.lower() in app["name"].lower() or query.lower() in desc.lower():
-
                 print(f"{app['name']}:{version} - {desc}")
 
 
 # ----------------------------
-# Clean installation directory
+# Clean install directory
 # ----------------------------
 def clean_install_dir(path):
 
@@ -184,7 +189,9 @@ def clean_install_dir(path):
 # Install application
 # ----------------------------
 def install_app(name, version):
+
     reset_nvim_runtime()
+
     apps = discover_apps()
 
     for app in apps:
@@ -211,7 +218,28 @@ def install_app(name, version):
 
         print(f"Installing {name}:{version}")
 
-        download_tree(version_path, install_dir, version_path)
+        files = gather_files(version_path)
+
+        pbar = tqdm.tqdm(total=len(files), desc="Downloading")
+
+        def task(file):
+            rel = Path(file["path"]).relative_to(version_path)
+            target = install_dir / rel
+            download(file["url"], target)
+            pbar.update(1)
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+
+            futures = [executor.submit(task, f) for f in files]
+
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"[ERROR] {e}")
+                    sys.exit(1)
+
+        pbar.close()
 
         print("Install complete")
         return
@@ -221,31 +249,39 @@ def install_app(name, version):
 
 
 # ----------------------------
-# CLI
+# CLI entry
 # ----------------------------
-parser = argparse.ArgumentParser(prog="repofetch")
+def main():
 
-sub = parser.add_subparsers(dest="command")
+    parser = argparse.ArgumentParser(prog="repofetch")
 
-sub.add_parser("list")
+    sub = parser.add_subparsers(dest="command")
 
-search_cmd = sub.add_parser("search")
-search_cmd.add_argument("query")
+    sub.add_parser("list")
 
-install_cmd = sub.add_parser("install")
-install_cmd.add_argument("name")
-install_cmd.add_argument("version")
+    search_cmd = sub.add_parser("search")
+    search_cmd.add_argument("query")
 
-args = parser.parse_args()
+    install_cmd = sub.add_parser("install")
+    install_cmd.add_argument("name")
+    install_cmd.add_argument("version")
 
-if args.command == "list":
-    list_apps()
+    args = parser.parse_args()
 
-elif args.command == "search":
-    search_apps(args.query)
+    if args.command == "list":
+        list_apps()
 
-elif args.command == "install":
-    install_app(args.name, args.version)
+    elif args.command == "search":
+        search_apps(args.query)
 
-else:
-    parser.print_help()
+    elif args.command == "install":
+        install_app(args.name, args.version)
+
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    from multiprocessing import freeze_support
+    freeze_support()
+    main()
