@@ -1,0 +1,26 @@
+{
+    "ide": {
+        "install_dir": "/.config",
+        "description": "An IDE like feel in neovim",
+        "files": [
+            "init.lua",
+            "lua/ide/lazy.lua",
+            "lua/ide/plugins/toggleterm.lua",
+            "lua/ide/plugins/cmp.lua",
+            "lua/ide/plugins/gitsigns.lua",
+            "lua/ide/plugins/autopairs.lua",
+            "lua/ide/plugins/lsp.lua",
+            "lua/ide/plugins/treesitter.lua",
+            "lua/ide/plugins/lualine.lua",
+            "lua/ide/plugins/whichkey.lua",
+            "lua/ide/plugins/neotree.lua",
+            "lua/ide/plugins/bufremove.lua",
+            "lua/ide/plugins/colorscheme.lua",
+            "lua/ide/plugins/telescope.lua",
+            "lua/ide/plugins/bufferline.lua",
+            "lua/ide/core/diagnostics.lua",
+            "lua/ide/core/options.lua",
+            "lua/ide/core/keymaps.lua"
+        ]
+    }
+}
