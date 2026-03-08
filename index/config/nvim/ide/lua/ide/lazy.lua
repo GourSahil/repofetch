@@ -14,6 +14,6 @@ vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
   spec = {
-    { import = "sevrus.plugins" },
+    { import = "ide.plugins" },
   },
 })
