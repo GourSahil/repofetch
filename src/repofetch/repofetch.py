@@ -72,6 +72,16 @@ def download_tree(repo_path, install_root, base_path):
 
             download_tree(item["path"], install_root, base_path)
 
+def reset_nvim_runtime():
+    paths = [
+        Path.home() / ".local/share/nvim",
+        Path.home() / ".cache/nvim",
+        Path.home() / ".local/state/nvim",
+    ]
+
+    for p in paths:
+        if p.exists():
+            shutil.rmtree(p)
 
 # ----------------------------
 # Discover apps
@@ -174,7 +184,7 @@ def clean_install_dir(path):
 # Install application
 # ----------------------------
 def install_app(name, version):
-
+    reset_nvim_runtime()
     apps = discover_apps()
 
     for app in apps:
